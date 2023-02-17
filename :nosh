@@ -1,5 +1,5 @@
-use crate::componentes::*;
-use bevy::{app::AppExit, prelude::*, render::camera::WindowOrigin};
+use crate::{componentes::*, recursos::CajasRestantes};
+use bevy::{input::keyboard::KeyboardInput, prelude::*, render::camera::WindowOrigin};
 use std::fs;
 
 const SCALE: f32 = 1.5f32;
@@ -27,39 +27,23 @@ pub fn crear_juego(mut com: Commands, mut asset_server: Res<AssetServer>) {
     }
 }
 
+// hay que hacer un sistema con Changed<Posicion> !!
+
 pub fn mover_entidad(mut query: Query<(&mut Transform, &Posicion), Changed<Posicion>>) {
     for (mut t, p) in query.iter_mut() {
         t.translation = t_from(*p);
     }
 }
 
-pub fn comprobar_objetivo(
-    mut caja: Query<(&Posicion, &mut Terminado), With<Caja>>,
-    objetivos: Query<&Posicion, With<Objetivo>>,
-    mut exit: EventWriter<AppExit>,
-) {
-    for (posicion_caja, mut termiando_caja) in caja.iter_mut() {
-        let caja_termianda = objetivos.iter().find(|p| *p == posicion_caja);
-        if let Some(_) = caja_termianda {
-            termiando_caja.0 = true;
-        }
-    }
-    if let None = caja.iter().find(|(_, t)| !t.0) {
-        print!("Juego Terminado");
-        exit.send(AppExit);
-    }
-}
-
 pub fn flecha_presionada(
     // hacerla con timer para poder mantener presionada la tecla
     teclas: Res<Input<KeyCode>>,
-    cajas: Query<(Entity, &Posicion, &Terminado), With<Caja>>,
-    muros: Query<&Posicion, (With<Fijo>, Without<Objetivo>)>,
-    jugador: Query<(Entity, &Posicion, &Terminado), With<Jugador>>,
-    cualquier_cosa: Query<&Posicion, Without<Objetivo>>,
-    mut com: Commands,
+    cajas: Query<(&mut Posicion, &Terminado), With<Caja>>,
+    muros: Query<&Posicion, With<Muro>>,
+    jugador: Query<(&mut Posicion, &Terminado), With<Jugador>>,
+    cualquier_cosa: Query<&Posicion>,
 ) {
-    let (id_jugador, posicion_jugador, terminado_jugador) = jugador.single();
+    let (posicion_jugador, terminado_jugador) = jugador.single_mut();
     if terminado_jugador.0 {
         return;
     }
@@ -73,25 +57,19 @@ pub fn flecha_presionada(
 
     if let Some(direccion) = dir {
         let direccion = direccion.1;
-        let muro = muros
-            .iter()
-            .find(|&&pos| pos == direccion + *posicion_jugador);
+        let muro = muros.iter().find(|&&pos| pos == direccion + *posicion_jugador);
 
-        if let Some(_) = muro {
+        if let Some(_) = muro{
             return;
         }
 
-        let caja_cerca = cajas
-            .iter()
-            .find(|(_, pos, _)| **pos == direccion + *posicion_jugador);
-        let lejos = cualquier_cosa
-            .iter()
-            .find(|pos| **pos == direccion * 2.0 + *posicion_jugador);
+        let _ = cajas.iter().for_each(|(p, _)| println!("caja -> {:?}", p));
+        let caja_cerca = cajas.iter_mut().find(|(pos, _)| **pos == direccion + *posicion_jugador);
+        let lejos = cualquier_cosa.iter().find(|pos| **pos == direccion * 2.0 + *posicion_jugador);
 
-        if let Some(ref caja) = caja_cerca {
-            // si la caja ha llegado al objetivo no se puede mover,
-            // así que no nos movemos.
-            if caja.2 .0 {
+        if let Some(ref caja) = caja_cerca {// si la caja ha llegado al objetivo no se puede mover,
+                                            // así que no nos movemos.
+            if caja.1.0 {
                 return;
             }
         }
@@ -101,18 +79,23 @@ pub fn flecha_presionada(
         //      - (caja, nada) -> me muevo y muevo la caja.
         //      - (caja_terminada, nada) -> no me muevo
         //      - (nada, _) -> me muevo.
+        println!("cerca: {:?}", caja_cerca);
+        println!("lejos: {:?}", lejos);
         match (caja_cerca, lejos) {
             (Some(caja), None) => {
-                let p1 = *posicion_jugador + direccion;
-                let p2 = *caja.1 + direccion;
-                com.entity(id_jugador).insert(p1);
-                com.entity(caja.0).insert(p2);
-            }
+                println!("(hay caja) posicion anterior jugador: {:?}", posicion_jugador);
+                println!("(hay caja) posicion anterior caja {:?}", caja.0);
+                //*posicion_jugador = *posicion_jugador + direccion; // mover jugador.
+                //*caja.0 =  *caja.0 + direccion; // mover caja.
+                print!("jugador iría hacia: {:?}", *posicion_jugador + direccion);
+                println!("caja iría hacia: {:?}", *caja.0 + direccion);
+            },
             (None, _) => {
-                let p1 = *posicion_jugador + direccion;
-                com.entity(id_jugador).insert(p1);
+                println!("posicion anterior jugador: {:?}", posicion_jugador);
+                //*posicion_jugador = *posicion_jugador + direccion; // mover jugador.
+                println!("jugador iría a: {:?}", *posicion_jugador + direccion);
             }
-            (_, _) => {}
+            (_, _) => {},
         }
     }
 }
@@ -156,7 +139,6 @@ fn crear_caja(coordenadas: Posicion, com: &mut Commands, asset_server: &mut Res<
         sprite_from("caja.png", coordenadas, asset_server),
         coordenadas,
         Movible,
-        Terminado(false),
         Caja,
     ));
 }
@@ -165,6 +147,7 @@ fn crear_objetivo(coordenadas: Posicion, com: &mut Commands, asset_server: &mut 
     com.spawn((
         sprite_from("objetivo.png", coordenadas, asset_server),
         coordenadas,
+        Terminado(false),
         Fijo,
         Objetivo,
     ));
@@ -175,5 +158,6 @@ fn crear_muro(coordenadas: Posicion, com: &mut Commands, asset_server: &mut Res<
         sprite_from("muro.png", coordenadas, asset_server),
         coordenadas,
         Fijo,
+        Muro,
     ));
 }

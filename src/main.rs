@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use bevy::prelude::*;
+use bevy::{ecs::world::SpawnBatchIter, prelude::*};
 mod componentes;
 mod entidades;
 mod recursos;
@@ -15,5 +15,8 @@ fn main() {
             ..default()
         }))
         .add_startup_system(sistemas::crear_juego)
+        .add_system(sistemas::flecha_presionada)
+        .add_system(sistemas::mover_entidad)
+        .add_system(sistemas::comprobar_objetivo)
         .run();
 }
