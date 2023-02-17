@@ -36,22 +36,15 @@ impl Mul<f32> for Posicion {
     }
 }
 
-//#[derive(Component)]
-//pub enum Movimiento {
-//    Arriba,
-//    Abajo,
-//    Derecha,
-//    Izquierda,
-//}
-
-#[derive(Component)]
-pub struct Fijo; // marker component: componenete para ayudar a identificar entidades.
-
-#[derive(Component)]
-pub struct Movible; // marker component: componenete para ayudar a identificar entidades.
-
 #[derive(Component, Debug)]
 pub struct Terminado(pub bool);
+
+// marker components: componenetes para ayudar a identificar entidades.
+#[derive(Component)]
+pub struct Fijo;
+
+#[derive(Component)]
+pub struct Movible;
 
 #[derive(Component, Debug)]
 pub struct Objetivo;

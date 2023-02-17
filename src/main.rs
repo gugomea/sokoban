@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 
-use bevy::{ecs::world::SpawnBatchIter, prelude::*};
+use bevy::prelude::*;
 mod componentes;
-mod entidades;
-mod recursos;
 mod sistemas;
 fn main() {
     App::new()
